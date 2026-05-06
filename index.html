@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>河谷演变动画 - V型峡谷到U型宽谷</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --panel-bg: #16213e;
+            --text: #e0e0e0;
+            --accent: #f0a500;
+            --accent2: #4ecdc4;
+            --danger: #e85d75;
+            --stage1: #ff6b6b;
+            --stage2: #f9a826;
+            --stage3: #51cf66;
+            --gold: #d4a574;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+            overflow-x: hidden;
+            padding: 10px;
+            background-image:
+                radial-gradient(ellipse at 50% 30%, rgba(74, 108, 140, 0.25) 0%, transparent 70%),
+                radial-gradient(ellipse at 30% 70%, rgba(40, 60, 80, 0.2) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 60%, rgba(60, 50, 40, 0.2) 0%, transparent 60%);
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 960px;
+            background: var(--panel-bg);
+            border-radius: 20px;
+            padding: 20px 20px 16px;
+            box-shadow:
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.03);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .header .title-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header .icon-mountain {
+            font-size: 2rem;
+            filter: drop-shadow(0 0 8px rgba(240, 165, 0, 0.5));
+        }
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 0.03em;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+            margin: 0;
+        }
+        .header .subtitle {
+            font-size: 0.8rem;
+            color: #aaa;
+            letter-spacing: 0.05em;
+        }
+
+        /* 阶段指示灯 */
+        .stage-indicators {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .stage-dot {
+            width: 36px;
+            height: 6px;
+            border-radius: 3px;
+            background: #333;
+            transition: all 0.5s ease;
+            cursor: pointer;
+            position: relative;
+        }
+        .stage-dot.active {
+            width: 48px;
+            box-shadow: 0 0 16px currentColor;
+        }
+        .stage-dot.s1 {
+            background: #555;
+        }
+        .stage-dot.s1.active {
+            background: var(--stage1);
+            box-shadow: 0 0 18px var(--stage1);
+        }
+        .stage-dot.s2 {
+            background: #555;
+        }
+        .stage-dot.s2.active {
+            background: var(--stage2);
+            box-shadow: 0 0 18px var(--stage2);
+        }
+        .stage-dot.s3 {
+            background: #555;
+        }
+        .stage-dot.s3.active {
+            background: var(--stage3);
+            box-shadow: 0 0 18px var(--stage3);
+        }
+        .stage-label-mini {
+            font-size: 0.65rem;
+            color: #888;
+            text-align: center;
+            transition: color 0.5s;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .stage-label-mini.active {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        /* Canvas容器 */
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            max-height: 520px;
+            border-radius: 14px;
+            overflow: hidden;
+            background: #0d1117;
+            box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.6), 0 4px 20px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 14px;
+        }
+
+        /* 控制栏 */
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .btn {
+            padding: 9px 18px;
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            color: #ddd;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            letter-spacing: 0.03em;
+            transition: all 0.3s;
+            user-select: none;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.4);
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        .btn:active {
+            transform: scale(0.96);
+            transition: transform 0.1s;
+        }
+        .btn.play-btn {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #1a1a2e;
+            font-weight: 700;
+            min-width: 80px;
+            letter-spacing: 0.05em;
+        }
+        .btn.play-btn:hover {
+            background: #fbbf24;
+            border-color: #fbbf24;
+            box-shadow: 0 4px 20px rgba(240, 165, 0, 0.4);
+        }
+        .btn.stage-btn {
+            font-size: 0.78rem;
+            padding: 7px 14px;
+        }
+        .btn.stage-btn.btn-s1 {
+            border-left: 3px solid var(--stage1);
+        }
+        .btn.stage-btn.btn-s2 {
+            border-left: 3px solid var(--stage2);
+        }
+        .btn.stage-btn.btn-s3 {
+            border-left: 3px solid var(--stage3);
+        }
+        .btn.stage-btn.active-stage {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.5);
+            font-weight: 700;
+        }
+
+        /* 信息面板 */
+        .info-panel {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .info-card {
+            flex: 1;
+            min-width: 130px;
+            max-width: 200px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 10px 14px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            transition: all 0.5s;
+        }
+        .info-card .card-icon {
+            font-size: 1.5rem;
+            margin-bottom: 2px;
+        }
+        .info-card .card-val {
+            font-size: 0.75rem;
+            color: #aaa;
+            letter-spacing: 0.03em;
+        }
+        .info-card.highlight {
+            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.07);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
+        }
+        .info-card.highlight .card-val {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        /* 响应式 */
+        @media (max-width: 700px) {
+            .main-container {
+                padding: 12px 8px 10px;
+                gap: 8px;
+                border-radius: 14px;
+            }
+            .header h1 {
+                font-size: 1.2rem;
+            }
+            .btn {
+                padding: 7px 12px;
+                font-size: 0.75rem;
+            }
+            .info-card {
+                min-width: 90px;
+                padding: 7px 10px;
+            }
+            .info-card .card-val {
+                font-size: 0.68rem;
+            }
+            .canvas-wrapper {
+                aspect-ratio: 4/3;
+                max-height: 340px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <!-- 头部 -->
+        <div class="header">
+            <div class="title-group">
+                <span class="icon-mountain">🏔️</span>
+                <div>
+                    <h1>河谷演变 · 横截面动画</h1>
+                    <div class="subtitle">V型峡谷 → 槽型宽谷</div>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span class="stage-label-mini s1-lbl active" onclick="jumpToStage(0)">初期·V型谷</span>
+                <span style="color:#555;">→</span>
+                <span class="stage-label-mini s2-lbl" onclick="jumpToStage(1)">中期·拓宽</span>
+                <span style="color:#555;">→</span>
+                <span class="stage-label-mini s3-lbl" onclick="jumpToStage(2)">后期·U型谷</span>
+            </div>
+        </div>
+
+        <!-- 阶段指示灯 -->
+        <div class="stage-indicators" style="justify-content:center;">
+            <div class="stage-dot s1" id="dot1" onclick="jumpToStage(0)"></div>
+            <div class="stage-dot s2" id="dot2" onclick="jumpToStage(1)"></div>
+            <div class="stage-dot s3" id="dot3" onclick="jumpToStage(2)"></div>
+        </div>
+
+        <!-- Canvas画布 -->
+        <div class="canvas-wrapper">
+            <canvas id="mainCanvas"></canvas>
+        </div>
+
+        <!-- 信息卡片 -->
+        <div class="info-panel" id="infoPanel">
+            <div class="info-card" id="cardErosion">
+                <div class="card-icon">⚒️</div>
+                <div class="card-val">下切侵蚀为主</div>
+            </div>
+            <div class="info-card" id="cardShape">
+                <div class="card-icon">📐</div>
+                <div class="card-val">窄深 V 型</div>
+            </div>
+            <div class="info-card" id="cardSpeed">
+                <div class="card-icon">💧</div>
+                <div class="card-val">流速快·落差大</div>
+            </div>
+            <div class="info-card" id="cardTerrace">
+                <div class="card-icon">🪜</div>
+                <div class="card-val">阶地未发育</div>
+            </div>
+        </div>
+
+        <!-- 控制按钮 -->
+        <div class="controls">
+            <button class="btn play-btn" id="btnPlay" onclick="togglePlay()">⏯️ 播放中</button>
+            <button class="btn stage-btn btn-s1" onclick="jumpToStage(0)">初期 V型谷</button>
+            <button class="btn stage-btn btn-s2" onclick="jumpToStage(1)">中期 侧蚀</button>
+            <button class="btn stage-btn btn-s3" onclick="jumpToStage(2)">后期 U型谷</button>
+            <button class="btn" onclick="restartAnimation()">🔄 重新开始</button>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const canvas = document.getElementById('mainCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // Canvas内部分辨率
+            const W = 900;
+            const H = 500;
+            let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+            function resizeCanvas() {
+                const wrapper = canvas.parentElement;
+                const rect = wrapper.getBoundingClientRect();
+                const displayWidth = rect.width;
+                const displayHeight = rect.height;
+                dpr = Math.min(window.devicePixelRatio || 1, 2);
+                canvas.width = displayWidth * dpr;
+                canvas.height = displayHeight * dpr;
+                canvas.style.width = displayWidth + 'px';
+                canvas.style.height = displayHeight + 'px';
+            }
+            resizeCanvas();
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+            });
+
+            // 动画状态
+            let animProgress = 0; // 0到1，表示从初期到后期的完整演变
+            let isPlaying = true;
+            const totalDuration = 22; // 总动画时长（秒）
+            let lastTime = performance.now();
+            let targetProgress = null; // 用于平滑过渡到目标阶段
+            let targetTransitionSpeed = 0.6; // 过渡速度
+
+            // 粒子系统
+            let particles = [];
+            const maxParticles = 80;
+
+            // 预计算的山体纹理点
+            let texturePointsCache = [];
+
+            function generateTexturePoints(seed) {
+                const pts = [];
+                const rng = mulberry32(seed);
+                for (let i = 0; i < 60; i++) {
+                    pts.push({
+                        x: rng() * W,
+                        y: 30 + rng() * (H - 60),
+                        r: 1.5 + rng() * 3.5,
+                        alpha: 0.15 + rng() * 0.35,
+                    });
+                }
+                return pts;
+            }
+            texturePointsCache = generateTexturePoints(42);
+
+            function mulberry32(a) {
+                return function() {
+                    a |= 0;
+                    a = a + 0x6D2B79F5 | 0;
+                    let t = Math.imul(a ^ a >>> 15, 1 | a);
+                    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+                    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+                };
+            }
+
+            // 缓动函数
+            function easeInOutCubic(t) {
+                return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            }
+            function smoothstep(t) {
+                const x = Math.max(0, Math.min(1, t));
+                return x * x * (3 - 2 * x);
+            }
+
+            // 根据总进度获取阶段化参数
+            function getStageParams(progress) {
+                const p = smoothstep(Math.max(0, Math.min(1, progress)));
+                // 阶段权重
+                const stage1Weight = Math.max(0, 1 - Math.abs(p - 0.0) * 3.5);
+                const stage2Weight = Math.max(0, 1 - Math.abs(p - 0.5) * 3.5);
+                const stage3Weight = Math.max(0, 1 - Math.abs(p - 1.0) * 3.5);
+
+                // 谷底宽度：从窄(25px)到宽(270px)
+                const valleyBottomWidth = 25 + p * 255;
+                // 谷深度变化（从深到稍浅，因为沉积填充）
+                const valleyDepth = 310 - p * 70;
+                // 山坡弯曲度：0=直线(V型), 1=明显弯曲(U型)
+                const slopeCurvature = p;
+                // 水面宽度
+                const waterWidth = 16 + p * 240;
+                // 水深
+                const waterDepth = 38 - p * 26;
+                // 阶地可见度
+                const terraceVisibility = Math.max(0, (p - 0.55) * 2.2);
+                // 河漫滩宽度
+                const floodplainWidth = Math.max(0, (p - 0.5) * 140);
+                // 下切侵蚀强度
+                const downcuttingIntensity = Math.max(0, 1 - p * 2.8);
+                // 侧蚀强度
+                const lateralErosionIntensity = Math.max(0, 1 - Math.abs(p - 0.55) * 3.3);
+                // 堆积强度
+                const depositionIntensity = Math.max(0, (p - 0.6) * 2.5);
+
+                return {
+                    p,
+                    stage1Weight,
+                    stage2Weight,
+                    stage3Weight,
+                    valleyBottomWidth,
+                    valleyDepth,
+                    slopeCurvature,
+                    waterWidth,
+                    waterDepth,
+                    terraceVisibility,
+                    floodplainWidth,
+                    downcuttingIntensity,
+                    lateralErosionIntensity,
+                    depositionIntensity,
+                    currentStage: p < 0.3 ? 0 : (p < 0.65 ? 1 : 2),
+                };
+            }
+
+            // 获取谷壁曲线上的点（左侧谷壁）
+            function getLeftValleyWallY(x, params, centerX, valleyBottomY, mountainTopY) {
+                const {
+                    valleyBottomWidth,
+                    slopeCurvature,
+                    valleyDepth,
+                    terraceVisibility
+                } = params;
+                const bottomLeftX = centerX - valleyBottomWidth / 2;
+                const topLeftX = centerX - 180 - slopeCurvature * 80;
+                const topY = mountainTopY;
+
+                if (x <= topLeftX) return topY;
+                if (x >= bottomLeftX) return valleyBottomY;
+
+                const t = (x - topLeftX) / (bottomLeftX - topLeftX);
+                // 使用贝塞尔曲线模拟
+                const cpX = topLeftX + (bottomLeftX - topLeftX) * (0.35 - slopeCurvature * 0.2);
+                const cpY = topY + (valleyBottomY - topY) * (0.25 + slopeCurvature * 0.35);
+                const cp2X = bottomLeftX - (bottomLeftX - topLeftX) * (0.3 - slopeCurvature * 0.25);
+                const cp2Y = valleyBottomY - (valleyBottomY - topY) * (0.2 - slopeCurvature * 0.3);
+
+                // 三次贝塞尔
+                const mt = Math.max(0, Math.min(1, t));
+                const u = 1 - mt;
+                const y = u * u * u * topY + 3 * u * u * mt * cpY + 3 * u * mt * mt * cp2Y + mt * mt * mt * valleyBottomY;
+                return y;
+            }
+
+            function getRightValleyWallY(x, params, centerX, valleyBottomY, mountainTopY) {
+                const {
+                    valleyBottomWidth,
+                    slopeCurvature
+                } = params;
+                const bottomRightX = centerX + valleyBottomWidth / 2;
+                const topRightX = centerX + 180 + slopeCurvature * 80;
+                const topY = mountainTopY;
+
+                if (x >= topRightX) return topY;
+                if (x <= bottomRightX) return valleyBottomY;
+
+                const t = (topRightX - x) / (topRightX - bottomRightX);
+                const cpX = topRightX - (topRightX - bottomRightX) * (0.35 - slopeCurvature * 0.2);
+                const cpY = topY + (valleyBottomY - topY) * (0.25 + slopeCurvature * 0.35);
+                const cp2X = bottomRightX + (topRightX - bottomRightX) * (0.3 - slopeCurvature * 0.25);
+                const cp2Y = valleyBottomY - (valleyBottomY - topY) * (0.2 - slopeCurvature * 0.3);
+
+                const mt = Math.max(0, Math.min(1, t));
+                const u = 1 - mt;
+                const y = u * u * u * topY + 3 * u * u * mt * cpY + 3 * u * mt * mt * cp2Y + mt * mt * mt * valleyBottomY;
+                return y;
+            }
+
+            // 绘制函数
+            function drawSky(ctx, params) {
+                const grad = ctx.createLinearGradient(0, 0, 0, H * 0.6);
+                grad.addColorStop(0, '#1a2a3a');
+                grad.addColorStop(0.5, '#2c3e50');
+                grad.addColorStop(1, '#3d5060');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, W, H);
+                // 星星
+                const starSeed = 123;
+                const rng = mulberry32(starSeed);
+                ctx.fillStyle = '#ffffff';
+                for (let i = 0; i < 35; i++) {
+                    const sx = rng() * W;
+                    const sy = rng() * H * 0.55;
+                    const sr = 0.4 + rng() * 1.2;
+                    const sa = 0.3 + rng() * 0.7;
+                    const twinkle = 0.5 + 0.5 * Math.sin(animProgress * 20 + i * 3.7);
+                    ctx.globalAlpha = sa * twinkle;
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+            }
+
+            function drawMountainBody(ctx, params, centerX, valleyBottomY, mountainTopY) {
+                const {
+                    valleyBottomWidth,
+                    slopeCurvature,
+                    terraceVisibility,
+                    floodplainWidth,
+                    p
+                } = params;
+
+                const bottomLeftX = centerX - valleyBottomWidth / 2;
+                const bottomRightX = centerX + valleyBottomWidth / 2;
+                const topLeftX = centerX - 180 - slopeCurvature * 80;
+                const topRightX = centerX + 180 + slopeCurvature * 80;
+                const topY = mountainTopY;
+
+                // 山体主体 - 左半部分
+                ctx.beginPath();
+                ctx.moveTo(0, topY - 30);
+                ctx.lineTo(topLeftX, topY);
+                // 左侧谷壁曲线
+                const steps = 60;
+                for (let i = 0; i <= steps; i++) {
+                    const x = topLeftX + (bottomLeftX - topLeftX) * (i / steps);
+                    const y = getLeftValleyWallY(x, params, centerX, valleyBottomY, mountainTopY);
+                    ctx.lineTo(x, y);
+                }
+                // 谷底
+                const floodLeft = bottomLeftX - floodplainWidth * 0.5;
+                const floodRight = bottomRightX + floodplainWidth * 0.5;
+                ctx.lineTo(floodLeft, valleyBottomY);
+                if (floodplainWidth > 2) {
+                    ctx.lineTo(floodLeft, valleyBottomY + 4 + floodplainWidth * 0.04);
+                    ctx.lineTo(floodRight, valleyBottomY + 4 + floodplainWidth * 0.04);
+                }
+                ctx.lineTo(floodRight, valleyBottomY);
+                ctx.lineTo(bottomRightX, valleyBottomY);
+                // 右侧谷壁曲线（反向）
+                for (let i = steps; i >= 0; i--) {
+                    const x = topRightX - (topRightX - bottomRightX) * (i / steps);
+                    const y = getRightValleyWallY(x, params, centerX, valleyBottomY, mountainTopY);
+                    ctx.lineTo(x, y);
+                }
+                ctx.lineTo(topRightX, topY);
+                ctx.lineTo(W, topY - 30);
+                ctx.lineTo(W, H);
+                ctx.lineTo(0, H);
+                ctx.closePath();
+
+                // 山体渐变
+                const grad = ctx.createLinearGradient(0, topY - 20, 0, H);
+                grad.addColorStop(0, '#5a4a3a');
+                grad.addColorStop(0.3, '#6b5b48');
+                grad.addColorStop(0.55, '#7d6b55');
+                grad.addColorStop(0.75, '#5c4d3c');
+                grad.addColorStop(1, '#3d3028');
+                ctx.fillStyle = grad;
+                ctx.fill();
+
+                // 基岩纹理
+                ctx.fillStyle = 'rgba(40,30,22,0.25)';
+                for (const pt of texturePointsCache) {
+                    const wallYLeft = getLeftValleyWallY(pt.x, params, centerX, valleyBottomY, mountainTopY);
+                    const wallYRight = getRightValleyWallY(pt.x, params, centerX, valleyBottomY, mountainTopY);
+                    if (pt.y > wallYLeft && pt.y < H && pt.x < centerX) {
+                        ctx.beginPath();
+                        ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    if (pt.y > wallYRight && pt.y < H && pt.x > centerX) {
+                        ctx.beginPath();
+                        ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+
+                // 阶地绘制
+                if (terraceVisibility > 0.01) {
+                    drawTerraces(ctx, params, centerX, valleyBottomY, mountainTopY, bottomLeftX, bottomRightX,
+                        topLeftX, topRightX, topY, terraceVisibility);
+                }
+
+                // 植被点
+                drawVegetation(ctx, params, centerX, valleyBottomY, mountainTopY, bottomLeftX, bottomRightX, topLeftX,
+                    topRightX, topY);
+            }
+
+            function drawTerraces(ctx, params, centerX, valleyBottomY, mountainTopY, bottomLeftX, bottomRightX, topLeftX,
+                topRightX, topY, visibility) {
+                const {
+                    valleyBottomWidth,
+                    slopeCurvature
+                } = params;
+                ctx.save();
+                ctx.globalAlpha = visibility;
+                // 左侧阶地
+                const terraceLevels = [
+                    { frac: 0.35, width: 25, height: 8 },
+                    { frac: 0.55, width: 35, height: 7 },
+                    { frac: 0.72, width: 30, height: 6 },
+                ];
+                for (const tl of terraceLevels) {
+                    const tx = bottomLeftX + (topLeftX - bottomLeftX) * tl.frac;
+                    const ty = getLeftValleyWallY(tx, params, centerX, valleyBottomY, mountainTopY);
+                    const tw = tl.width * (0.7 + slopeCurvature * 0.6);
+                    ctx.fillStyle = '#9b8b70';
+                    ctx.fillRect(tx - tw * 0.6, ty - tl.height, tw, tl.height);
+                    ctx.fillStyle = '#7a6b55';
+                    ctx.fillRect(tx - tw * 0.6, ty - tl.height, tw, 2);
+                    ctx.strokeStyle = 'rgba(60,40,25,0.5)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(tx - tw * 0.6, ty - tl.height);
+                    ctx.lineTo(tx + tw * 0.4, ty - tl.height);
+                    ctx.stroke();
+                }
+                // 右侧阶地
+                for (const tl of terraceLevels) {
+                    const tx = bottomRightX + (topRightX - bottomRightX) * tl.frac;
+                    const ty = getRightValleyWallY(tx, params, centerX, valleyBottomY, mountainTopY);
+                    const tw = tl.width * (0.7 + slopeCurvature * 0.6);
+                    ctx.fillStyle = '#9b8b70';
+                    ctx.fillRect(tx - tw * 0.4, ty - tl.height, tw, tl.height);
+                    ctx.fillStyle = '#7a6b55';
+                    ctx.fillRect(tx - tw * 0.4, ty - tl.height, tw, 2);
+                    ctx.strokeStyle = 'rgba(60,40,25,0.5)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(tx - tw * 0.4, ty - tl.height);
+                    ctx.lineTo(tx + tw * 0.6, ty - tl.height);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            function drawVegetation(ctx, params, centerX, valleyBottomY, mountainTopY, bottomLeftX, bottomRightX, topLeftX,
+                topRightX, topY) {
+                const {
+                    slopeCurvature,
+                    p
+                } = params;
+                const vegRng = mulberry32(777);
+                ctx.fillStyle = 'rgba(60,100,50,0.5)';
+                for (let i = 0; i < 120; i++) {
+                    const vx = vegRng() * W;
+                    const vy = vegRng() * H;
+                    const wallY = vx < centerX ?
+                        getLeftValleyWallY(vx, params, centerX, valleyBottomY, mountainTopY) :
+                        getRightValleyWallY(vx, params, centerX, valleyBottomY, mountainTopY);
+                    if (vy > wallY + 3 && vy < wallY + 55 && vy < H - 20) {
+                        const vr = 1.2 + vegRng() * 3.5;
+                        ctx.beginPath();
+                        ctx.arc(vx, vy, vr, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+                // 后期更多植被
+                if (p > 0.5) {
+                    const extraAlpha = (p - 0.5) * 2;
+                    ctx.fillStyle = `rgba(50,95,40,${0.35*extraAlpha})`;
+                    const vegRng2 = mulberry32(888);
+                    for (let i = 0; i < 60; i++) {
+                        const vx = vegRng2() * W;
+                        const vy = vegRng2() * H;
+                        const wallY = vx < centerX ?
+                            getLeftValleyWallY(vx, params, centerX, valleyBottomY, mountainTopY) :
+                            getRightValleyWallY(vx, params, centerX, valleyBottomY, mountainTopY);
+                        if (vy > wallY + 2 && vy < wallY + 40 && vy < H - 30) {
+                            ctx.beginPath();
+                            ctx.arc(vx, vy, 2 + vegRng2() * 4, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                }
+            }
+
+            function drawRiver(ctx, params, centerX, valleyBottomY, time) {
+                const {
+                    waterWidth,
+                    waterDepth,
+                    p,
+                    floodplainWidth
+                } = params;
+                const waterSurfaceY = valleyBottomY - waterDepth;
+                const halfWidth = waterWidth / 2;
+                const leftX = centerX - halfWidth;
+                const rightX = centerX + halfWidth;
+
+                // 水体
+                const waterGrad = ctx.createLinearGradient(0, waterSurfaceY, 0, valleyBottomY + 6);
+                const depthFactor = 1 - p * 0.4;
+                waterGrad.addColorStop(0, `rgba(70,150,210,${0.75*depthFactor})`);
+                waterGrad.addColorStop(0.5, `rgba(40,100,180,${0.85*depthFactor})`);
+                waterGrad.addColorStop(1, `rgba(20,50,100,${0.9*depthFactor})`);
+                ctx.fillStyle = waterGrad;
+                ctx.beginPath();
+                ctx.moveTo(leftX, waterSurfaceY);
+                // 水面有微小波动
+                const waveSteps = 40;
+                for (let i = 0; i <= waveSteps; i++) {
+                    const wx = leftX + (rightX - leftX) * (i / waveSteps);
+                    const waveAmp = 1.5 + p * 3.5;
+                    const waveFreq = (8 - p * 5) * (1 + p * 0.3);
+                    const wy = waterSurfaceY + Math.sin(i * waveFreq + time * (3 - p * 2.2)) * waveAmp +
+                        Math.sin(i * waveFreq * 2.3 + time * 1.7) * waveAmp * 0.5;
+                    ctx.lineTo(wx, wy);
+                }
+                ctx.lineTo(rightX, valleyBottomY + 2);
+                ctx.lineTo(leftX, valleyBottomY + 2);
+                ctx.closePath();
+                ctx.fill();
+
+                // 水面高光
+                ctx.strokeStyle = `rgba(180,220,255,${0.5+0.2*Math.sin(time*3)})`;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                for (let i = 0; i <= waveSteps; i++) {
+                    const wx = leftX + (rightX - leftX) * (i / waveSteps);
+                    const waveAmp = 1.5 + p * 3.5;
+                    const waveFreq = (8 - p * 5) * (1 + p * 0.3);
+                    const wy = waterSurfaceY + Math.sin(i * waveFreq + time * (3 - p * 2.2)) * waveAmp +
+                        Math.sin(i * waveFreq * 2.3 + time * 1.7) * waveAmp * 0.5;
+                    if (i === 0) ctx.moveTo(wx, wy);
+                    else ctx.lineTo(wx, wy);
+                }
+                ctx.stroke();
+
+                // 泡沫/急流效果（初期）
+                if (p < 0.4) {
+                    const foamAlpha = (1 - p / 0.4) * 0.7;
+                    ctx.fillStyle = `rgba(255,255,255,${foamAlpha})`;
+                    const foamRng = mulberry32(Math.floor(time * 30) % 10000 + 500);
+                    for (let i = 0; i < 18; i++) {
+                        const fx = leftX + foamRng() * waterWidth;
+                        const fy = waterSurfaceY + foamRng() * waterDepth;
+                        const fr = 1 + foamRng() * 3;
+                        ctx.beginPath();
+                        ctx.arc(fx, fy, fr, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+
+                // 河漫滩（后期）
+                if (floodplainWidth > 3 && p > 0.5) {
+                    const fpAlpha = Math.min(0.7, (p - 0.5) * 1.8);
+                    const fpGrad = ctx.createLinearGradient(0, valleyBottomY - 2, 0, valleyBottomY + 18);
+                    fpGrad.addColorStop(0, `rgba(180,160,130,${fpAlpha})`);
+                    fpGrad.addColorStop(0.5, `rgba(200,180,150,${fpAlpha*0.8})`);
+                    fpGrad.addColorStop(1, `rgba(160,140,110,${fpAlpha*0.5})`);
+                    ctx.fillStyle = fpGrad;
+                    const fpLeft = centerX - waterWidth / 2 - floodplainWidth * 0.5;
+                    const fpRight = centerX + waterWidth / 2 + floodplainWidth * 0.5;
+                    ctx.fillRect(fpLeft, valleyBottomY - 1, fpRight - fpLeft, 14 + floodplainWidth * 0.05);
+                    // 河漫滩纹理
+                    ctx.fillStyle = `rgba(140,120,90,${fpAlpha*0.4})`;
+                    const fpRng = mulberry32(999);
+                    for (let i = 0; i < 30; i++) {
+                        const sx = fpLeft + fpRng() * (fpRight - fpLeft);
+                        const sy = valleyBottomY + fpRng() * 14;
+                        ctx.beginPath();
+                        ctx.arc(sx, sy, 1 + fpRng() * 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+
+            function drawErosionArrows(ctx, params, centerX, valleyBottomY, mountainTopY, time) {
+                const {
+                    downcuttingIntensity,
+                    lateralErosionIntensity,
+                    valleyBottomWidth,
+                    waterWidth,
+                    p
+                } = params;
+                const arrowAlpha = 0.6;
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.font = 'bold 13px "PingFang SC","Microsoft YaHei","Segoe UI",sans-serif';
+
+                // 下切侵蚀箭头（初期）
+                if (downcuttingIntensity > 0.05) {
+                    const alpha = downcuttingIntensity * arrowAlpha;
+                    const arrowX = centerX;
+                    const arrowBaseY = valleyBottomY + 15;
+                    const arrowTipY = arrowBaseY + 35 + Math.sin(time * 4) * 8;
+                    ctx.strokeStyle = `rgba(255,120,80,${alpha})`;
+                    ctx.fillStyle = `rgba(255,100,60,${alpha})`;
+                    ctx.lineWidth = 2.5;
+                    // 主箭头
+                    drawArrow(ctx, arrowX, arrowBaseY, arrowX, arrowTipY, 10, alpha);
+                    // 小箭头
+                    if (downcuttingIntensity > 0.4) {
+                        drawArrow(ctx, arrowX - 14, arrowBaseY + 5, arrowX - 14, arrowTipY - 8, 6, alpha * 0.7);
+                        drawArrow(ctx, arrowX + 14, arrowBaseY + 5, arrowX + 14, arrowTipY - 8, 6, alpha * 0.7);
+                    }
+                    // 标签
+                    if (downcuttingIntensity > 0.5) {
+                        ctx.fillStyle = `rgba(255,150,120,${alpha})`;
+                        ctx.fillText('下切侵蚀', arrowX, arrowTipY + 22);
+                        ctx.fillText('+ 溯源侵蚀', arrowX, arrowTipY + 38);
+                    }
+                }
+
+                // 侧蚀箭头（中期）
+                if (lateralErosionIntensity > 0.05) {
+                    const alpha = lateralErosionIntensity * arrowAlpha;
+                    const waterSurfaceY = valleyBottomY - (38 - p * 26);
+                    const halfW = waterWidth / 2;
+                    const arrowY = waterSurfaceY + 8;
+                    ctx.strokeStyle = `rgba(255,180,60,${alpha})`;
+                    ctx.fillStyle = `rgba(255,160,40,${alpha})`;
+                    ctx.lineWidth = 2.2;
+                    // 左侧侧蚀
+                    const leftStartX = centerX - halfW - 8;
+                    const leftEndX = leftStartX - 30 - Math.sin(time * 3.5) * 10;
+                    drawArrow(ctx, leftStartX, arrowY, leftEndX, arrowY, 8, alpha);
+                    // 右侧侧蚀
+                    const rightStartX = centerX + halfW + 8;
+                    const rightEndX = rightStartX + 30 + Math.sin(time * 3.5) * 10;
+                    drawArrow(ctx, rightStartX, arrowY, rightEndX, arrowY, 8, alpha);
+                    // 标签
+                    if (lateralErosionIntensity > 0.5) {
+                        ctx.fillStyle = `rgba(255,200,140,${alpha})`;
+                        ctx.fillText('侧蚀', leftEndX - 10, arrowY - 16);
+                        ctx.fillText('侧蚀', rightEndX + 10, arrowY - 16);
+                        ctx.fillText('凹岸侵蚀·崩塌后退', centerX, arrowY + 28);
+                    }
+                }
+
+                // 堆积标签（后期）
+                if (p > 0.65) {
+                    const alpha = (p - 0.65) * 2.8 * arrowAlpha;
+                    ctx.fillStyle = `rgba(200,220,180,${alpha})`;
+                    ctx.fillText('流水堆积·河漫滩发育', centerX, valleyBottomY - 10);
+                    ctx.fillText('阶地形成', centerX, valleyBottomY - 28);
+                }
+                ctx.restore();
+            }
+
+            function drawArrow(ctx, x1, y1, x2, y2, headSize, alpha) {
+                const angle = Math.atan2(y2 - y1, x2 - x1);
+                const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+                if (len < 2) return;
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2 - Math.cos(angle) * headSize * 0.7, y2 - Math.sin(angle) * headSize * 0.7);
+                ctx.stroke();
+                // 箭头头部
+                ctx.beginPath();
+                ctx.moveTo(x2, y2);
+                ctx.lineTo(
+                    x2 - Math.cos(angle - 0.7) * headSize,
+                    y2 - Math.sin(angle - 0.7) * headSize
+                );
+                ctx.lineTo(
+                    x2 - Math.cos(angle + 0.7) * headSize,
+                    y2 - Math.sin(angle + 0.7) * headSize
+                );
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            function drawProfileMini(ctx, params, time) {
+                // 右上角纵剖面小图
+                const {
+                    p
+                } = params;
+                const miniX = W - 175;
+                const miniY = 18;
+                const miniW = 155;
+                const miniH = 100;
+                ctx.save();
+                ctx.globalAlpha = 0.85;
+                // 背景
+                ctx.fillStyle = 'rgba(20,25,35,0.85)';
+                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.roundRect(miniX, miniY, miniW, miniH, 8);
+                ctx.fill();
+                ctx.stroke();
+                // 标题
+                ctx.fillStyle = '#ccc';
+                ctx.font = '10px "PingFang SC","Microsoft YaHei","Segoe UI",sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('纵剖面（溯源侵蚀）', miniX + miniW / 2, miniY + 14);
+                // 绘制纵剖面曲线
+                const px1 = miniX + 15;
+                const py1 = miniY + miniH - 15;
+                const px2 = miniX + miniW - 15;
+                const py2_start = miniY + 60;
+                const py2_end = miniY + 28;
+                const py2 = py2_start + (py2_end - py2_start) * p;
+                // 曲线控制点
+                const cpx = px1 + (px2 - px1) * (0.3 + p * 0.2);
+                const cpy = py1 - (py1 - py2) * (0.55 - p * 0.35);
+                ctx.strokeStyle = '#f0a500';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(px1, py1);
+                ctx.quadraticCurveTo(cpx, cpy, px2, py2);
+                ctx.stroke();
+                // 源头标记
+                ctx.fillStyle = '#ff6b6b';
+                ctx.beginPath();
+                ctx.arc(px2, py2, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#fff';
+                ctx.font = '9px "PingFang SC","Microsoft YaHei","Segoe UI",sans-serif';
+                ctx.fillText('源头后退', px2 - 25, py2 - 10);
+                // 箭头指示溯源侵蚀方向
+                if (p < 0.7) {
+                    const arrowAlpha = 1 - p * 0.9;
+                    ctx.strokeStyle = `rgba(255,120,100,${arrowAlpha})`;
+                    ctx.fillStyle = `rgba(255,120,100,${arrowAlpha})`;
+                    ctx.lineWidth = 1.8;
+                    const ax = px2 - 18;
+                    const ay = py2 - 5;
+                    drawArrow(ctx, ax, ay + 12, ax, ay - 8, 6, arrowAlpha);
+                }
+                ctx.restore();
+            }
+
+            function drawStageLabel(ctx, params, time) {
+                const {
+                    currentStage,
+                    p
+                } = params;
+                const labels = [
+                    { text: '初期：V型峡谷', sub: '下切侵蚀 + 溯源侵蚀', color: '#ff6b6b', icon: '🔽' },
+                    { text: '中期：河谷拓宽', sub: '侧蚀增强 · 凹岸崩塌', color: '#f9a826', icon: '↔️' },
+                    { text: '后期：槽型宽谷', sub: '侧蚀+堆积 · 阶地发育', color: '#51cf66', icon: '🏞️' },
+                ];
+                const stage = currentStage;
+                const label = labels[stage];
+                const alpha = 0.85;
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                // 背景
+                const lx = W / 2;
+                const ly = 38;
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.font = 'bold 16px "PingFang SC","Microsoft YaHei","Segoe UI",sans-serif';
+                const textW = ctx.measureText(label.text).width + 80;
+                ctx.beginPath();
+                ctx.roundRect(lx - textW / 2, ly - 16, textW, 38, 20);
+                ctx.fill();
+                ctx.strokeStyle = label.color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                // 文字
+                ctx.fillStyle = label.color;
+                ctx.textAlign = 'center';
+                ctx.fillText(label.icon + ' ' + label.text, lx, ly + 4);
+                ctx.fillStyle = '#ddd';
+                ctx.font = '11px "PingFang SC","Microsoft YaHei","Segoe UI",sans-serif';
+                ctx.fillText(label.sub, lx, ly + 20);
+                ctx.restore();
+            }
+
+            function drawParticles(ctx, params, time) {
+                const {
+                    downcuttingIntensity,
+                    lateralErosionIntensity,
+                    valleyBottomWidth,
+                    waterWidth,
+                    p,
+                    valleyDepth
+                } = params;
+                const centerX = W / 2;
+                const valleyBottomY = 70 + valleyDepth;
+                const waterSurfaceY = valleyBottomY - (38 - p * 26);
+
+                // 生成新粒子
+                // 下切侵蚀粒子（从河床底部向下）
+                if (downcuttingIntensity > 0.1 && particles.length < maxParticles) {
+                    const count = Math.floor(downcuttingIntensity * 4);
+                    for (let i = 0; i < count; i++) {
+                        particles.push({
+                            x: centerX + (Math.random() - 0.5) * (waterWidth * 0.6),
+                            y: valleyBottomY + Math.random() * 8,
+                            vx: (Math.random() - 0.5) * 1.5,
+                            vy: Math.random() * 3 + 2,
+                            life: 1,
+                            decay: 0.02 + Math.random() * 0.06,
+                            size: 1.5 + Math.random() * 3,
+                            color: 'rgba(200,100,50,',
+                            type: 'downcut',
+                        });
+                    }
+                }
+                // 侧蚀粒子（从两侧谷壁）
+                if (lateralErosionIntensity > 0.1 && particles.length < maxParticles) {
+                    const count = Math.floor(lateralErosionIntensity * 5);
+                    const halfW = waterWidth / 2;
+                    for (let i = 0; i < count; i++) {
+                        const side = Math.random() < 0.5 ? -1 : 1;
+                        const sx = centerX + side * (halfW + Math.random() * 20);
+                        const sy = waterSurfaceY + Math.random() * 20;
+                        particles.push({
+                            x: sx,
+                            y: sy,
+                            vx: side * (Math.random() * 2 + 1) * (side > 0 ? 1 : -1),
+                            vy: Math.random() * 2 - 0.5,
+                            life: 1,
+                            decay: 0.025 + Math.random() * 0.07,
+                            size: 1.5 + Math.random() * 3.5,
+                            color: 'rgba(180,140,100,',
+                            type: 'lateral',
+                        });
+                    }
+                }
+                // 堆积粒子（后期，从水中沉积）
+                if (p > 0.6 && particles.length < maxParticles) {
+                    const count = Math.floor((p - 0.6) * 3);
+                    for (let i = 0; i < count; i++) {
+                        particles.push({
+                            x: centerX + (Math.random() - 0.5) * waterWidth,
+                            y: waterSurfaceY + Math.random() * 10,
+                            vx: (Math.random() - 0.5) * 0.8,
+                            vy: -Math.random() * 1.5 - 0.3,
+                            life: 1,
+                            decay: 0.03 + Math.random() * 0.05,
+                            size: 1 + Math.random() * 2,
+                            color: 'rgba(180,160,130,',
+                            type: 'deposit',
+                        });
+                    }
+                }
+
+                // 更新和绘制粒子
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const pt = particles[i];
+                    pt.x += pt.vx;
+                    pt.y += pt.vy;
+                    pt.life -= pt.decay;
+                    if (pt.life <= 0) {
+                        particles.splice(i, 1);
+                        continue;
+                    }
+                    ctx.fillStyle = pt.color + (pt.life * 0.8) + ')';
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, pt.size * pt.life, 0, Math.PI * 2);
+                    ctx.fill();
+                    // 拖尾
+                    ctx.fillStyle = pt.color + (pt.life * 0.3) + ')';
+                    ctx.beginPath();
+                    ctx.arc(pt.x - pt.vx * 0.5, pt.y - pt.vy * 0.5, pt.size * pt.life * 0.6, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                // 限制粒子数量
+                while (particles.length > maxParticles) {
+                    particles.shift();
+                }
+            }
+
+            function drawScaleIndicator(ctx, params, centerX, valleyBottomY, mountainTopY) {
+                const {
+                    valleyBottomWidth,
+                    p
+                } = params;
+                // 谷底宽度标注
+                const y = valleyBottomY + 40;
+                const leftX = centerX - valleyBottomWidth / 2;
+                const rightX = centerX + valleyBottomWidth / 2;
+                ctx.save();
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(leftX, valleyBottomY - 5);
+                ctx.lineTo(leftX, y + 8);
+                ctx.moveTo(rightX, valleyBottomY - 5);
+                ctx.lineTo(rightX, y + 8);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                // 箭头线
+                ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(leftX, y);
+                ctx.lineTo(rightX, y);
+                ctx.stroke();
+                // 箭头端
+                ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                ctx.beginPath();
+                ctx.moveTo(leftX, y);
+                ctx.lineTo(leftX + 7, y - 3);
+                ctx.lineTo(leftX + 7, y + 3);
+                ctx.closePath();
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(rightX, y);
+                ctx.lineTo(rightX - 7, y - 3);
+                ctx.lineTo(rightX - 7, y + 3);
+                ctx.closePath();
+                ctx.fill();
+                // 文字
+                ctx.fillStyle = '#ddd';
+                ctx.font = '11px "PingFang SC","Microsoft YaHei","Segoe UI",sans-serif';
+                ctx.textAlign = 'center';
+                const widthLabel = valleyBottomWidth < 60 ? '窄谷底' : (valleyBottomWidth < 160 ? '谷底拓宽中' : '宽阔谷底');
+                ctx.fillText(`谷底宽度 ≈ ${Math.round(valleyBottomWidth/3.5)}m (示意)`, centerX, y - 8);
+                ctx.restore();
+            }
+
+            function drawAll(ctx, time) {
+                ctx.clearRect(0, 0, W, H);
+                const params = getStageParams(animProgress);
+                const centerX = W / 2;
+                const mountainTopY = 55;
+                const valleyBottomY = 70 + params.valleyDepth;
+
+                drawSky(ctx, params);
+                drawMountainBody(ctx, params, centerX, valleyBottomY, mountainTopY);
+                drawRiver(ctx, params, centerX, valleyBottomY, time);
+                drawErosionArrows(ctx, params, centerX, valleyBottomY, mountainTopY, time);
+                drawParticles(ctx, params, time);
+                drawScaleIndicator(ctx, params, centerX, valleyBottomY, mountainTopY);
+                drawProfileMini(ctx, params, time);
+                drawStageLabel(ctx, params, time);
+
+                // 图例小标注
+                drawLegend(ctx, params);
+            }
+
+            function drawLegend(ctx, params) {
+                const lx = 15;
+                const ly = H - 75;
+                ctx.save();
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.roundRect(lx, ly, 155, 60, 8);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = '#ddd';
+                ctx.font = '10px "PingFang SC","Microsoft YaHei","Segoe UI",sans-serif';
+                ctx.textAlign = 'left';
+                const items = [
+                    { color: '#ff6b6b', label: '下切/溯源侵蚀' },
+                    { color: '#f9a826', label: '侧蚀（凹岸）' },
+                    { color: '#51cf66', label: '堆积·河漫滩' },
+                ];
+                items.forEach((item, i) => {
+                    const iy = ly + 14 + i * 15;
+                    ctx.fillStyle = item.color;
+                    ctx.fillRect(lx + 8, iy - 3, 10, 6);
+                    ctx.fillStyle = '#ccc';
+                    ctx.fillText(item.label, lx + 24, iy + 2);
+                });
+                ctx.restore();
+            }
+
+            function updateInfoPanel(params) {
+                const {
+                    currentStage,
+                    downcuttingIntensity,
+                    lateralErosionIntensity,
+                    depositionIntensity,
+                    terraceVisibility,
+                    p
+                } = params;
+                const cardErosion = document.getElementById('cardErosion');
+                const cardShape = document.getElementById('cardShape');
+                const cardSpeed = document.getElementById('cardSpeed');
+                const cardTerrace = document.getElementById('cardTerrace');
+
+                // 重置高亮
+                [cardErosion, cardShape, cardSpeed, cardTerrace].forEach(c => c.classList.remove('highlight'));
+
+                if (currentStage === 0) {
+                    cardErosion.querySelector('.card-val').textContent = '下切+溯源侵蚀为主';
+                    cardShape.querySelector('.card-val').textContent = '窄深 V 型峡谷';
+                    cardSpeed.querySelector('.card-val').textContent = '流速快·落差大';
+                    cardTerrace.querySelector('.card-val').textContent = '阶地未发育';
+                    cardErosion.classList.add('highlight');
+                    cardShape.classList.add('highlight');
+                } else if (currentStage === 1) {
+                    cardErosion.querySelector('.card-val').textContent = '侧蚀增强·下切减弱';
+                    cardShape.querySelector('.card-val').textContent = 'V型→U型过渡';
+                    cardSpeed.querySelector('.card-val').textContent = '流速减缓·侧蚀加强';
+                    cardTerrace.querySelector('.card-val').textContent = '谷底开始拓宽';
+                    cardErosion.classList.add('highlight');
+                    cardSpeed.classList.add('highlight');
+                } else {
+                    cardErosion.querySelector('.card-val').textContent = '侧蚀+堆积为主';
+                    cardShape.querySelector('.card-val').textContent = '宽阔 U型/槽型谷';
+                    cardSpeed.querySelector('.card-val').textContent = '流速慢·蜿蜒发育';
+                    cardTerrace.querySelector('.card-val').textContent = '阶地·河漫滩发育';
+                    cardShape.classList.add('highlight');
+                    cardTerrace.classList.add('highlight');
+                }
+            }
+
+            function updateStageUI(currentStage) {
+                const dots = [document.getElementById('dot1'), document.getElementById('dot2'), document.getElementById(
+                    'dot3')];
+                const lbls = [document.querySelector('.s1-lbl'), document.querySelector('.s2-lbl'), document.querySelector(
+                    '.s3-lbl')];
+                dots.forEach((d, i) => {
+                    d.classList.toggle('active', i === currentStage);
+                });
+                lbls.forEach((l, i) => {
+                    l.classList.toggle('active', i === currentStage);
+                });
+                // 阶段按钮
+                const stageBtns = document.querySelectorAll('.stage-btn');
+                stageBtns.forEach((btn, i) => {
+                    btn.classList.toggle('active-stage', i === currentStage);
+                });
+            }
+
+            function getCurrentStageFromProgress(p) {
+                if (p < 0.28) return 0;
+                if (p < 0.62) return 1;
+                return 2;
+            }
+
+            function animate(timestamp) {
+                if (!lastTime) lastTime = timestamp;
+                let dt = (timestamp - lastTime) / 1000;
+                if (dt > 0.2) dt = 0.2; // 防止大帧跳跃
+                if (dt <= 0) dt = 0.016;
+                lastTime = timestamp;
+
+                if (isPlaying) {
+                    if (targetProgress !== null) {
+                        // 平滑过渡到目标阶段
+                        const diff = targetProgress - animProgress;
+                        const step = targetTransitionSpeed * dt;
+                        if (Math.abs(diff) < step * 1.5) {
+                            animProgress = targetProgress;
+                            targetProgress = null;
+                        } else {
+                            animProgress += Math.sign(diff) * step;
+                        }
+                    } else {
+                        animProgress += dt / totalDuration;
+                        if (animProgress >= 1) {
+                            animProgress = 1;
+                            // 停留2秒后循环
+                            if (animProgress >= 1 && timestamp % (totalDuration * 1000 + 2000) < dt * 1000 + 100) {
+                                // 使用更平滑的循环
+                            }
+                            if (animProgress >= 1.05) {
+                                animProgress = 0;
+                                particles = [];
+                            }
+                        }
+                    }
+                } else {
+                    if (targetProgress !== null) {
+                        const diff = targetProgress - animProgress;
+                        const step = targetTransitionSpeed * dt;
+                        if (Math.abs(diff) < step * 1.5) {
+                            animProgress = targetProgress;
+                            targetProgress = null;
+                        } else {
+                            animProgress += Math.sign(diff) * step;
+                        }
+                    }
+                }
+                // 循环处理
+                if (isPlaying && animProgress >= 1 && targetProgress === null) {
+                    animProgress = 0;
+                    particles = [];
+                }
+                animProgress = Math.max(0, Math.min(1, animProgress));
+
+                const params = getStageParams(animProgress);
+                const currentStage = getCurrentStageFromProgress(animProgress);
+
+                // 缩放绘制
+                const displayWidth = canvas.clientWidth;
+                const displayHeight = canvas.clientHeight;
+                const scaleX = canvas.width / displayWidth;
+                const scaleY = canvas.height / displayHeight;
+                ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+                ctx.clearRect(0, 0, W, H);
+
+                drawAll(ctx, timestamp * 0.001);
+
+                // 重置变换
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+                updateInfoPanel(params);
+                updateStageUI(currentStage);
+
+                // 更新播放按钮
+                const btnPlay = document.getElementById('btnPlay');
+                if (isPlaying) {
+                    btnPlay.textContent = '⏯️ 播放中';
+                    btnPlay.style.background = 'var(--accent)';
+                    btnPlay.style.color = '#1a1a2e';
+                } else {
+                    btnPlay.textContent = '▶️ 已暂停';
+                    btnPlay.style.background = 'rgba(255,255,255,0.08)';
+                    btnPlay.style.color = '#ddd';
+                }
+
+                requestAnimationFrame(animate);
+            }
+
+            // 全局函数
+            window.togglePlay = function() {
+                isPlaying = !isPlaying;
+                targetProgress = null;
+                lastTime = performance.now();
+            };
+
+            window.jumpToStage = function(stageIndex) {
+                targetProgress = stageIndex === 0 ? 0.05 : (stageIndex === 1 ? 0.45 : 0.9);
+                targetTransitionSpeed = 0.8;
+                lastTime = performance.now();
+                // 如果暂停中，也允许跳转
+                if (!isPlaying) {
+                    isPlaying = true;
+                    // 到达后自动暂停
+                    setTimeout(() => {
+                        if (targetProgress === null && Math.abs(animProgress - (stageIndex === 0 ? 0.05 :
+                                stageIndex === 1 ? 0.45 : 0.9)) < 0.03) {
+                            isPlaying = false;
+                        }
+                    }, 1500);
+                }
+            };
+
+            window.restartAnimation = function() {
+                animProgress = 0;
+                particles = [];
+                targetProgress = null;
+                isPlaying = true;
+                lastTime = performance.now();
+            };
+
+            // 初始时快速展示初期阶段
+            animProgress = 0.02;
+            lastTime = performance.now();
+            requestAnimationFrame(animate);
+
+            // 响应窗口大小变化
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+                lastTime = performance.now();
+            });
+
+            console.log('🏔️ 河谷演变动画已就绪');
+            console.log('  - 初期：V型峡谷（下切侵蚀+溯源侵蚀）');
+            console.log('  - 中期：河谷拓宽（侧蚀增强）');
+            console.log('  - 后期：U型宽谷/槽型谷（阶地+河漫滩）');
+            console.log('  可用操作：点击阶段按钮、播放/暂停、重新开始');
+        })();
+    </script>
+</body>
+</html>
